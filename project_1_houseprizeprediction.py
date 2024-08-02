@@ -7,90 +7,134 @@ Original file is located at
     https://colab.research.google.com/drive/13CgdMllUZobtluiN0cnhXEiW3hfEM3ta
 """
 
+# Create a directory for Kaggle configuration files
 !mkdir ~/.kaggle
+
+# Move the Kaggle API key to the appropriate directory
 !cd kaggle.json ~/.kaggle/
+
+# Set permissions for the Kaggle API key file
 !chmod 600 ~/.kaggle/kaggle.json
+
+# Download the California housing prices dataset from Kaggle
 !kaggle datasets download -d camnugent/california-housing-prices
 
+# Unzip the downloaded dataset
 !unzip california-housing-prices.zip
 
 import pandas as pd
 
+# Load the housing data into a pandas DataFrame
 housing_pd = pd.read_csv('housing.csv')
+
+# Display the first few rows of the DataFrame
 housing_pd.head()
 
+# Count occurrences of each category in the 'ocean_proximity' column
 housing_pd['ocean_proximity'].value_counts()
 
+# Shuffle the DataFrame to randomize the order of the data
 housing_pd_shuffled = housing_pd.sample(n=len(housing_pd), random_state=1)
-housing_pd_shuffled
 
+# Convert 'ocean_proximity' categorical variable into dummy/indicator variables
 pd.get_dummies(housing_pd_shuffled['ocean_proximity'], dtype=int).head()
 
+# Drop the original 'ocean_proximity' column from the DataFrame
 housing_pd_shuffled.drop('ocean_proximity', axis=1).head()
 
-housing_pd_final = pd.concat([housing_pd_shuffled.drop('ocean_proximity', axis=1),pd.get_dummies(housing_pd_shuffled['ocean_proximity'], dtype=int)], axis=1)
+# Concatenate the dummy variables with the DataFrame, excluding the original categorical column
+housing_pd_final = pd.concat([housing_pd_shuffled.drop('ocean_proximity', axis=1),
+                               pd.get_dummies(housing_pd_shuffled['ocean_proximity'], dtype=int)], axis=1)
 
+# Display the final DataFrame structure
 housing_pd_final
 
-housing_pd_final = housing_pd_final[['longitude',	'latitude',	'housing_median_age',
-                                     'total_rooms',	'total_bedrooms',	'population',
-                                     'households',	'median_income','<1H OCEAN',	'INLAND',
-                                     'ISLAND',	'NEAR BAY',	'NEAR OCEAN',
+# Reorder columns for better readability and analysis
+housing_pd_final = housing_pd_final[['longitude', 'latitude', 'housing_median_age',
+                                     'total_rooms', 'total_bedrooms', 'population',
+                                     'households', 'median_income', '<1H OCEAN', 
+                                     'INLAND', 'ISLAND', 'NEAR BAY', 'NEAR OCEAN',
                                      'median_house_value']]
 
+# Display the final DataFrame
 housing_pd_final
 
+# Remove rows with missing values
 housing_pd_final = housing_pd_final.dropna()
+
+# Get the length of the cleaned DataFrame
 len(housing_pd_final)
 
+# Split the data into training, validation, and test sets
 train_pd, test_pd, val_pd = housing_pd_final[:18000], housing_pd_final[18000:19217], housing_pd_final[19215:]
+
+# Get the lengths of the splits
 len(train_pd), len(test_pd), len(val_pd)
 
+# Separate features and target variable for training, validation, and test sets
 X_train, y_train = train_pd.to_numpy()[:, :-1], train_pd.to_numpy()[:, -1]
 X_val, y_val = val_pd.to_numpy()[:, :-1], val_pd.to_numpy()[:, -1]
 X_test, y_test = test_pd.to_numpy()[:, :-1], test_pd.to_numpy()[:, -1]
 
+# Check the shape of the training, validation, and test sets
 X_train.shape, y_train.shape, X_val.shape, y_val.shape, X_test.shape, y_test.shape
 
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 
+# Initialize the scaler and fit it to the training data
 scaler = StandardScaler().fit(X_train[:, :8])
 
+# Define a preprocessing function to standardize the features
 def preprocessor(X):
-  A = np.copy(X)
-  A[:, :8] = scaler.transform(A[:, :8])
-  return A
+    A = np.copy(X)
+    A[:, :8] = scaler.transform(A[:, :8])  # Standardize the first 8 features
+    return A
 
-X_train, X_val, X_text = preprocessor(X_train), preprocessor(X_val), preprocessor(X_test)
-X_train
+# Preprocess the training, validation, and test sets
+X_train, X_val, X_test = preprocessor(X_train), preprocessor(X_val), preprocessor(X_test)
 
+# Check the shape of the preprocessed training data
 X_train.shape, y_train.shape, X_val.shape, y_val.shape, X_test.shape, y_test.shape
 
+# Convert the training data to a DataFrame and display the first few rows
 pd.DataFrame(X_train).head()
 
-pd.DataFrame(X_train).hist(figsize = (15, 8))
+# Plot histograms of the training data for visualization
+pd.DataFrame(X_train).hist(figsize=(15, 8))
 
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.linear_model import LinearRegression
 
+# Fit a linear regression model to the training data
 lm = LinearRegression().fit(X_train, y_train)
-mse(lm.predict(X_train), y_train, squared = False), mse(lm.predict(X_val), y_val, squared = False)
+
+# Calculate and print the RMSE for training and validation sets
+mse(lm.predict(X_train), y_train, squared=False), mse(lm.predict(X_val), y_val, squared=False)
 
 from sklearn.neighbors import KNeighborsRegressor
 
-knn = KNeighborsRegressor(n_neighbors = 10).fit(X_train, y_train)
-mse(knn.predict(X_train), y_train, squared = False), mse(knn.predict(X_val), y_val, squared = False)
+# Fit a K-Nearest Neighbors regression model
+knn = KNeighborsRegressor(n_neighbors=10).fit(X_train, y_train)
+
+# Calculate and print the RMSE for KNN model on training and validation sets
+mse(knn.predict(X_train), y_train, squared=False), mse(knn.predict(X_val), y_val, squared=False)
 
 from sklearn.ensemble import RandomForestRegressor
 
+# Fit a Random Forest regression model
 rfr = RandomForestRegressor(max_depth=8).fit(X_train, y_train)
+
+# Calculate and print the RMSE for Random Forest model on training and validation sets
 mse(rfr.predict(X_train), y_train, squared=False), mse(knn.predict(X_val), y_val, squared=False)
 
 from sklearn.ensemble import GradientBoostingRegressor
 
+# Fit a Gradient Boosting regression model
 gbr = GradientBoostingRegressor(n_estimators=10).fit(X_train, y_train)
-mse(gbr.predict(X_train), y_train, squared = False), mse(gbr.predict(X_val), y_val, squared = False)
+
+# Calculate and print the RMSE for Gradient Boosting model on training and validation sets
+mse(gbr.predict(X_train), y_train, squared=False), mse(gbr.predict(X_val), y_val, squared=False)
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import *
@@ -98,48 +142,64 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.metrics import RootMeanSquaredError
 from tensorflow.keras.optimizers import Adam
 
+# Build a simple neural network model
 simple_nn = Sequential()
-simple_nn.add(InputLayer((13,)))
-simple_nn.add(Dense(2, 'relu'))
-simple_nn.add(Dense(1, 'linear'))
+simple_nn.add(InputLayer((13,)))  # Input layer with 13 features
+simple_nn.add(Dense(2, 'relu'))    # Hidden layer with 2 neurons and ReLU activation
+simple_nn.add(Dense(1, 'linear'))   # Output layer for regression
 
+# Compile the model with Adam optimizer and mean squared error loss
 opt = Adam(learning_rate=.1)
-cp = ModelCheckpoint('models/simple_nn', save_best_only = True)
+cp = ModelCheckpoint('models/simple_nn', save_best_only=True)
 simple_nn.compile(optimizer=opt, loss='mse', metrics=[RootMeanSquaredError()])
+
+# Train the model on the training data with validation
 simple_nn.fit(x=X_train, y=y_train, validation_data=(X_val, y_val), epochs=100, callbacks=[cp])
 
-from tensorflow.keras.models import load_model
-
+# Load the best model after training
 simple_nn = load_model('models/simple_nn')
-mse(simple_nn.predict(X_train), y_train, squared = False), mse(simple_nn.predict(X_val), y_val, squared = False)
 
+# Calculate and print the RMSE for the loaded simple neural network model
+mse(simple_nn.predict(X_train), y_train, squared=False), mse(simple_nn.predict(X_val), y_val, squared=False)
+
+# Build a medium-sized neural network model
 Medium_nn = Sequential()
-Medium_nn.add(InputLayer((13,)))
-Medium_nn.add(Dense(2, 'relu'))
-Medium_nn.add(Dense(1, 'linear'))
+Medium_nn.add(InputLayer((13,)))  # Input layer with 13 features
+Medium_nn.add(Dense(2, 'relu'))    # Hidden layer with 2 neurons and ReLU activation
+Medium_nn.add(Dense(1, 'linear'))   # Output layer for regression
 
+# Compile and train the medium neural network model
 opt = Adam(learning_rate=.1)
-cp = ModelCheckpoint('models/Medium_nn', save_best_only = True)
+cp = ModelCheckpoint('models/Medium_nn', save_best_only=True)
 Medium_nn.compile(optimizer=opt, loss='mse', metrics=[RootMeanSquaredError()])
 Medium_nn.fit(x=X_train, y=y_train, validation_data=(X_val, y_val), epochs=100, callbacks=[cp])
 
+# Load the best medium model after training
 Medium_nn = load_model('models/Medium_nn')
-mse(Medium_nn.predict(X_train), y_train, squared = False), mse(Medium_nn.predict(X_val), y_val, squared = False)
 
+# Calculate and print the RMSE for the loaded medium neural network model
+mse(Medium_nn.predict(X_train), y_train, squared=False), mse(Medium_nn.predict(X_val), y_val, squared=False)
+
+# Build a large neural network model
 large_nn = Sequential()
-large_nn.add(InputLayer((13,)))
-large_nn.add(Dense(256, 'relu'))
-large_nn.add(Dense(128, 'relu'))
-large_nn.add(Dense(64, 'relu'))
-large_nn.add(Dense(32, 'relu'))
-large_nn.add(Dense(1, 'linear'))
+large_nn.add(InputLayer((13,)))  # Input layer with 13 features
+large_nn.add(Dense(256, 'relu'))  # Hidden layer with 256 neurons and ReLU activation
+large_nn.add(Dense(128, 'relu'))   # Hidden layer with 128 neurons and ReLU activation
+large_nn.add(Dense(64, 'relu'))    # Hidden layer with 64 neurons and ReLU activation
+large_nn.add(Dense(32, 'relu'))     # Hidden layer with 32 neurons and ReLU activation
+large_nn.add(Dense(1, 'linear'))    # Output layer for regression
 
+# Compile and train the large neural network model
 opt = Adam(learning_rate=.1)
-cp = ModelCheckpoint('models/large_nn', save_best_only = True)
+cp = ModelCheckpoint('models/large_nn', save_best_only=True)
 large_nn.compile(optimizer=opt, loss='mse', metrics=[RootMeanSquaredError()])
 large_nn.fit(x=X_train, y=y_train, validation_data=(X_val, y_val), epochs=100, callbacks=[cp])
 
+# Load the best large model after training
 large_nn = load_model('models/large_nn')
-mse(large_nn.predict(X_train), y_train, squared = False), mse(large_nn.predict(X_val), y_val, squared = False)
 
-mse(gbr.predict(X_test), y_test, squared = False)
+# Calculate and print the RMSE for the loaded large neural network model
+mse(large_nn.predict(X_train), y_train, squared=False), mse(large_nn.predict(X_val), y_val, squared=False)
+
+# Evaluate the Gradient Boosting model on the test set
+mse(gbr.predict(X_test), y_test, squared=False)
